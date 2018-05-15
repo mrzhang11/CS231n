@@ -1,6 +1,6 @@
-CS231n:Convolutional Neural Networks for Visual Recognition
+# CS231n:Convolutional Neural Networks for Visual Recognition
 
-course website
+[course website](http://cs231n.github.io/)
 
 - Assignment 1: Image Classification, kNN, SVM, Softmax, Neural Network
 - Assignment 2: Fully-Connected Nets, Batch Normalization, Dropout, Convolutional Nets
