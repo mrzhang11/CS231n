@@ -98,7 +98,7 @@ class TwoLayerNet(object):
     scores -= maxvals
     escores = np.exp(scores)
     p = escores/np.sum(escores, axis = 1).reshape(-1,1)
-    loss = np.mean(-np.log(p[range(N),list(y)]))
+    loss = np.mean(-np.log(p[range(N),list(y)] + 1e-8))
     loss += 0.5*reg*(np.sum(W1*W1) + np.sum(W2*W2))
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -157,8 +157,7 @@ class TwoLayerNet(object):
     - verbose: boolean; if true print progress during optimization.
     """
     num_train = X.shape[0]
-    iterations_per_epoch = max(num_train / batch_size, 1)
-
+    iterations_per_epoch = int(num_train / batch_size)
     # Use SGD to optimize the parameters in self.model
     loss_history = []
     train_acc_history = []
