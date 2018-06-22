@@ -36,7 +36,7 @@ def softmax_loss_naive(W, X, y, reg):
     f = X[i].dot(W)
     f -= np.max(f) 
     p = np.exp(f) / np.sum(np.exp(f))
-    loss -= np.log(p[y[i]])
+    loss -= np.log(p[y[i]] + 1e-8)
 
     for j in range(num_classes):
       if j == y[i]:
@@ -80,7 +80,7 @@ def softmax_loss_vectorized(W, X, y, reg):
   maxvals = np.max(scores, axis = 1).reshape(-1,1)
   scores -= maxvals
   p = np.exp(scores) / np.sum( np.exp(scores), axis = 1).reshape(-1,1)
-  loss = np.sum(-1*np.log(p[range(num_train),list(y)]))
+  loss = np.sum(-1*np.log(p[range(num_train),list(y)] + 1e-8))
 
 
   mask = np.zeros((num_train, num_classes))
