@@ -65,7 +65,8 @@ def sgd_momentum(w, dw, config=None):
     # TODO: Implement the momentum update formula. Store the updated value in #
     # the next_w variable. You should also use and update the velocity v.     #
     ###########################################################################
-    pass
+    v = config['momentum']*v - config['learning_rate'] * dw
+    next_w = w + v
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -99,7 +100,16 @@ def rmsprop(w, dw, config=None):
     # in the next_w variable. Don't forget to update cache value stored in    #
     # config['cache'].                                                        #
     ###########################################################################
-    pass
+    cache = config['cache']
+    decay_rate = config['decay_rate']
+    learning_rate = config['learning_rate']
+
+
+    cache  = decay_rate*cache + (1-decay_rate)*(dw**2)
+    next_w = w - learning_rate* dw / (np.sqrt(cache + config['epsilon']) )
+
+    
+    config['cache'] = cache
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -113,7 +123,7 @@ def adam(w, dw, config=None):
     gradient and its square and a bias correction term.
 
     config format:
-    - learning_rate: Scalar learning rate.
+    - learning_rate: Scalar learning rate. 
     - beta1: Decay rate for moving average of first moment of gradient.
     - beta2: Decay rate for moving average of second moment of gradient.
     - epsilon: Small scalar used for smoothing to avoid dividing by zero.
@@ -139,7 +149,26 @@ def adam(w, dw, config=None):
     # NOTE: In order to match the reference output, please modify t _before_  #
     # using it in any calculations.                                           #
     ###########################################################################
-    pass
+    config['t'] += 1
+
+    t = config['t'] 
+    m = config['m']
+    v = config['v']
+    beta1 = config['beta1']
+    beta2 = config['beta2']
+    learning_rate = config['learning_rate']
+    
+
+    m = beta1*m + (1-beta1)*dw
+    mt = m / (1-beta1**t)
+    v = beta2*v + (1-beta2)*(dw**2)
+    vt = v / (1-beta2**t)
+    next_w = w - learning_rate*mt/(np.sqrt(vt+config['epsilon']))
+
+
+    config['m'] = m
+    config['v'] = v
+    
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
