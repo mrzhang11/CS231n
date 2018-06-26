@@ -249,6 +249,7 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
         caches = []
+        dp_caches = []
         scores = 0
         pre_input = X
         #hidden layers: affine-bn-relu-dropout
@@ -267,7 +268,8 @@ class FullyConnectedNet(object):
                 out, cache = affine_relu_forward(pre_input, w, b)
             #dropout
             if self.use_dropout:
-                pass
+                out, drop_cache = dropout_forward(out, self.dropout_param)
+                dp_caches.append(drop_cache)
 
             pre_input = out
             caches.append(cache)
@@ -309,14 +311,17 @@ class FullyConnectedNet(object):
             w = self.params['W'+index]
             b = self.params['b'+index]
             cache = caches[i]
-            #normalization: None, batchnorm, layernorm
-            if self.normalization is not None:
-                dout, grads['W'+index], grads['b'+index], grads['gamma'+index], grads['beta'+index] = affine_norm_relu_backward(back_dout, cache)
-            else:
-                dout, grads['W'+index], grads['b'+index] = affine_relu_backward(back_dout, cache)
+
             #dropout
             if self.use_dropout:
-                pass
+                drop_cache = dp_caches[i]
+                back_dout = dropout_backward(back_dout, drop_cache)
+
+            #normalization: None, batchnorm, layernorm
+            if self.normalization is not None:
+                dout, grads['W'+index], grads['b'+index], grads['gamma'+index], grads['beta'+index] = affine_norm_relu_backward(back_dout, cache, self.normalization)
+            else:
+                dout, grads['W'+index], grads['b'+index] = affine_relu_backward(back_dout, cache)
 
             grads['W'+index] += self.reg*w
             loss += 0.5*self.reg*np.sum(w*w)
