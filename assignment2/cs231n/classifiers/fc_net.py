@@ -176,16 +176,19 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zeros.                               #
         ############################################################################
         pre_dim = input_dim
-        hidden_dims.append(num_classes)
         for i, hidden_dim in enumerate(hidden_dims):
             index = str(i+1)
             self.params['W'+index] = weight_scale * np.random.randn(pre_dim, hidden_dim)
             self.params['b'+index] = np.zeros(hidden_dim)
             #batch normalization
-            #self.params['gamma'+index] = np.ones(hidden_dim)
-            #self.params['beta'+index] = np.zeros(hidden_dim)
+            if self.normalization is not None:
+                self.params['gamma'+index] = np.ones(hidden_dim)
+                self.params['beta'+index] = np.zeros(hidden_dim)
 
             pre_dim = hidden_dim
+        #last fc layer
+        self.params['W'+str(self.num_layers)] = weight_scale * np.random.randn(pre_dim, num_classes)
+        self.params['b'+str(self.num_layers)] = np.zeros(num_classes)
 
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -249,20 +252,30 @@ class FullyConnectedNet(object):
         scores = 0
         pre_input = X
         #hidden layers: affine-bn-relu-dropout
-        #last layer: affine->scores
-        for i in range(self.num_layers):
+        for i in range(self.num_layers-1):
             index = str(i+1)
             w = self.params['W'+index]
             b = self.params['b'+index]
-
-            if i!=self.num_layers-1:
-                out, cache = affine_relu_forward(pre_input, w, b)
+            #normalization: None, batchnorm, layernorm
+            if self.normalization is not None:
+                gamma = self.params['gamma'+index]
+                beta = self.params['beta'+index]
+                bn_param = self.bn_params[i]
+                out, cache = affine_norm_relu_forward(pre_input, w, b,
+                                gamma, beta, bn_param, self.normalization)
             else:
-                scores, cache = affine_forward(pre_input, w, b)
+                out, cache = affine_relu_forward(pre_input, w, b)
+            #dropout
+            if self.use_dropout:
+                pass
 
             pre_input = out
             caches.append(cache)
 
+        #last layer: affine->scores
+        endIndex = str(self.num_layers)
+        scores, cache = affine_forward(pre_input, self.params['W'+endIndex], self.params['b'+endIndex])
+        caches.append(cache)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -286,23 +299,28 @@ class FullyConnectedNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
         loss, dscore = softmax_loss(scores, y)
-        back_dout = dscore
 
-        for i in range(self.num_layers-1,-1,-1):
+        #last layer
+        dout, grads['W'+endIndex], grads['b'+endIndex] = affine_backward(dscore, caches[-1])
+        back_dout = dout
+        #before layers
+        for i in range(self.num_layers-2,-1,-1):
             index = str(i+1)
             w = self.params['W'+index]
             b = self.params['b'+index]
             cache = caches[i]
-
-            if i!=self.num_layers-1:
-                dout, grads['W'+index], grads['b'+index] = affine_relu_backward(back_dout, cache)
+            #normalization: None, batchnorm, layernorm
+            if self.normalization is not None:
+                dout, grads['W'+index], grads['b'+index], grads['gamma'+index], grads['beta'+index] = affine_norm_relu_backward(back_dout, cache)
             else:
-                dout, grads['W'+index], grads['b'+index] = affine_backward(back_dout, cache)
+                dout, grads['W'+index], grads['b'+index] = affine_relu_backward(back_dout, cache)
+            #dropout
+            if self.use_dropout:
+                pass
 
             grads['W'+index] += self.reg*w
             loss += 0.5*self.reg*np.sum(w*w)
             back_dout = dout
-
 
         ############################################################################
         #                             END OF YOUR CODE                             #
