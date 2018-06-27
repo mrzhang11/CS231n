@@ -825,10 +825,9 @@ def spatial_groupnorm_backward(dout, cache):
     stdV = np.sqrt(sample_var+eps)   # N G C//G H W 
 
     dnormx = (dout * gamma).reshape(N, G, C//G, H, W)
-    dvar = np.sum( -0.5*dnormx*centeredX*(stdV**(-3)), axis=(0,1))     
-    print(dvar.shape)
-    dmean = np.sum( -1*dnormx/stdV, axis=(0,1)) + (-2)*dvar*np.sum(centeredX, axis=(0,1))/m  
-    dx = (dnormx/stdV + 2*dvar*centeredX/m  + dmean/m ).reshape(N,C,H,W)
+    dvar = np.sum( -0.5*dnormx*centeredX*(stdV**(-3)), axis=(0,1)) # C//G  H  W
+    dmean = np.sum( -1*dnormx/stdV, axis=(0,1)) + (-2)*dvar*np.sum(centeredX, axis=(0,1))/m   # C//G  H  W
+    dx = (dnormx/stdV + 2*dvar*centeredX/m  + dmean/m ).reshape(N,C,H,W) # have problems
     dgamma = np.sum(dout*normx, axis = (0,2,3), keepdims=True)   
     dbeta = np.sum(dout, axis = (0,2,3), keepdims=True)
     ###########################################################################
