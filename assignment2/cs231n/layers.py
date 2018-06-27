@@ -192,7 +192,6 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         normx = (x-sample_mean) / np.sqrt(sample_var+eps)
         out = gamma * normx + beta
         cache = (x, gamma, beta, normx, sample_mean, sample_var, eps)
-
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -669,8 +668,8 @@ def max_pool_backward_naive(dout, cache):
     for i in range(newH):
         for j in range(newW):
             cur_slice = x[:, :, i*stride:i*stride+pool_height, j*stride:j*stride+pool_width] # N*C*pool_height*pool_width
-            maxval = np.max(cur_slice, axis=(2,3))
-            mask = (cur_slice == (maxval)[:,:,None,None])
+            maxval = np.max(cur_slice, axis=(2,3), keepdims=True)
+            mask = (cur_slice == maxval)
             dx[:,:,i*stride:i*stride+pool_height, j*stride:j*stride+pool_width] = mask * (dout[:,:,i,j])[:,:,None,None]
 
 
@@ -703,7 +702,6 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     - cache: Values needed for the backward pass
     """
     out, cache = None, None
-
     ###########################################################################
     # TODO: Implement the forward pass for spatial batch normalization.       #
     #                                                                         #
@@ -711,7 +709,10 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+
+    batchnorm, cache = batchnorm_forward(x.transpose(0,3,2,1).reshape((N*H*W,C)), gamma, beta, bn_param)
+    out = batchnorm.reshape(N,W,H,C).transpose(0,3,2,1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -741,7 +742,10 @@ def spatial_batchnorm_backward(dout, cache):
     # vanilla version of batch normalization you implemented above.           #
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
-    pass
+    N, C, H, W = dout.shape
+
+    dbatch, dgamma, dbeta = batchnorm_backward(dout.transpose(0,3,2,1).reshape(N*H*W,C), cache)
+    dx = dbatch.reshape(N,W,H,C).transpose(0,3,2,1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -777,7 +781,16 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     # the bulk of the code is similar to both train-time batch normalization  #
     # and layer normalization!                                                # 
     ###########################################################################
-    pass
+    N, C, H ,W = x.shape
+    xg = x.reshape(N, G, C//G, H, W)
+    
+    sample_mean = np.mean(xg, axis = (2,3,4), keepdims=True)
+    sample_var = np.var(xg, axis = (2,3,4), keepdims=True)
+
+    normx = ( (xg-sample_mean) / np.sqrt(sample_var+eps) ).reshape(N,C,H,W)
+    out = gamma * normx + beta
+    cache = (x, gamma, beta, G, normx, sample_mean, sample_var, eps)
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -803,7 +816,21 @@ def spatial_groupnorm_backward(dout, cache):
     # TODO: Implement the backward pass for spatial group normalization.      #
     # This will be extremely similar to the layer norm implementation.        #
     ###########################################################################
-    pass
+    x, gamma, beta, G, normx, sample_mean, sample_var, eps = cache
+    N, C, H ,W = x.shape
+    x = x.reshape(N, G, C//G, H, W)
+    m = x.shape[0]*x.shape[1]
+    
+    centeredX = x-sample_mean        # N G C//G H W 
+    stdV = np.sqrt(sample_var+eps)   # N G C//G H W 
+
+    dnormx = (dout * gamma).reshape(N, G, C//G, H, W)
+    dvar = np.sum( -0.5*dnormx*centeredX*(stdV**(-3)), axis=(0,1))     
+    print(dvar.shape)
+    dmean = np.sum( -1*dnormx/stdV, axis=(0,1)) + (-2)*dvar*np.sum(centeredX, axis=(0,1))/m  
+    dx = (dnormx/stdV + 2*dvar*centeredX/m  + dmean/m ).reshape(N,C,H,W)
+    dgamma = np.sum(dout*normx, axis = (0,2,3), keepdims=True)   
+    dbeta = np.sum(dout, axis = (0,2,3), keepdims=True)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
