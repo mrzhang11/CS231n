@@ -7,3 +7,4 @@
 - Assignment 3: Image Captioning with Vanilla RNNs, Image Captioning with LSTMs, Network Visualization, Style Transfer, Generative Adversarial Networks
 
 
+[ZHIHU notes](https://zhuanlan.zhihu.com/p/21930884)
