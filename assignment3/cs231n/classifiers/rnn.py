@@ -144,9 +144,10 @@ class CaptioningRNN(object):
         h0, h0_cache = affine_forward(features, W_proj, b_proj)
         captions_embed_out, captions_embed_cache = word_embedding_forward(captions_in, W_embed)
 
-        h, h_cache = None, None
         if self.cell_type == 'rnn':
             h, h_cache = rnn_forward(captions_embed_out, h0, Wx, Wh, b)
+        else:
+            h, h_cache = lstm_forward(captions_embed_out, h0, Wx, Wh, b)
 
         vocab_out, vocab_cache = temporal_affine_forward(h, W_vocab, b_vocab)
         loss, dvocab = temporal_softmax_loss(vocab_out, captions_out, mask)
@@ -154,10 +155,11 @@ class CaptioningRNN(object):
         # backward
         dh, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dvocab, vocab_cache)
 
-        dcaptions = None
-        dh0 = None
         if self.cell_type == 'rnn':
             dcaptions, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dh, h_cache)
+        else:
+            dcaptions, dh0, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dh, h_cache)
+
         grads['W_embed'] = word_embedding_backward(dcaptions, captions_embed_cache)
         dfeatures, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, h0_cache)
 
@@ -228,11 +230,19 @@ class CaptioningRNN(object):
         h_prev, _ = affine_forward(features, W_proj, b_proj)
         captions_in = np.array([self._start for i in range(N)])
         captions[:, 0] = self._start
+        H = int(b.shape[0]/4)
+        c_prev = np.zeros([N, H])
 
         for i in range(1, max_length):
             captions_in_embed, _ = word_embedding_forward(captions_in, W_embed)
-            h_next, _ = rnn_step_forward(captions_in_embed, h_prev, Wx, Wh, b)
+
+            if self.cell_type=='rnn':
+                h_next, _ = rnn_step_forward(captions_in_embed, h_prev, Wx, Wh, b)
+            else:
+                h_next, c_next, _ = lstm_step_forward(captions_in_embed, h_prev, c_prev, Wx, Wh, b)
+
             h_prev = h_next
+            c_prev = c_next
             vocab_out, _ = affine_forward(h_next, W_vocab, b_vocab)
             captions[:,i] = vocab_out.argmax(axis = 1)
 
