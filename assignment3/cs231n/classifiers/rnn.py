@@ -140,7 +140,27 @@ class CaptioningRNN(object):
         # Note also that you are allowed to make use of functions from layers.py   #
         # in your implementation, if needed.                                       #
         ############################################################################
-        pass
+        # forward
+        h0, h0_cache = affine_forward(features, W_proj, b_proj)
+        captions_embed_out, captions_embed_cache = word_embedding_forward(captions_in, W_embed)
+
+        h, h_cache = None, None
+        if self.cell_type == 'rnn':
+            h, h_cache = rnn_forward(captions_embed_out, h0, Wx, Wh, b)
+
+        vocab_out, vocab_cache = temporal_affine_forward(h, W_vocab, b_vocab)
+        loss, dvocab = temporal_softmax_loss(vocab_out, captions_out, mask)
+
+        # backward
+        dh, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dvocab, vocab_cache)
+
+        dcaptions = None
+        dh0 = None
+        if self.cell_type == 'rnn':
+            dcaptions, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dh, h_cache)
+        grads['W_embed'] = word_embedding_backward(dcaptions, captions_embed_cache)
+        dfeatures, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, h0_cache)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -205,7 +225,17 @@ class CaptioningRNN(object):
         # NOTE: we are still working over minibatches in this function. Also if   #
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
-        pass
+        h_prev, _ = affine_forward(features, W_proj, b_proj)
+        captions_in = np.array([self._start for i in range(N)])
+        captions[:, 0] = self._start
+
+        for i in range(1, max_length):
+            captions_in_embed, _ = word_embedding_forward(captions_in, W_embed)
+            h_next, _ = rnn_step_forward(captions_in_embed, h_prev, Wx, Wh, b)
+            h_prev = h_next
+            vocab_out, _ = affine_forward(h_next, W_vocab, b_vocab)
+            captions[:,i] = vocab_out.argmax(axis = 1)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
